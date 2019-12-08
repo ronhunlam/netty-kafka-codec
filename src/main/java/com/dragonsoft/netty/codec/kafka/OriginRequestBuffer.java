@@ -13,7 +13,6 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class OriginRequestBuffer {
 	
-	// because there is no thread-switching, so we don't need juc containers.
 	private static Map<String, Queue<KafkaNettyRequest>> outBoundChannelRequest = new ConcurrentHashMap<>();
 	
 	private OriginRequestBuffer() {

@@ -33,13 +33,26 @@ public class ChannelUtil {
 		return "";
 	}
 	
-	public static void closeChannel(Channel channel) {
-		final String remoteAddr = parseChannelRemoteAddr(channel);
-		channel.close().addListener(new ChannelFutureListener() {
-			@Override
-			public void operationComplete(ChannelFuture channelFuture) throws Exception {
-				logger.info("close the channel to remote address[{}] result: {}", remoteAddr, channelFuture.isSuccess());
+	public static String parseChannelLocalAddr(final Channel channel) {
+		if (null == channel) {
+			return "";
+		}
+		SocketAddress remote = channel.localAddress();
+		final String addr = remote != null ? remote.toString() : "";
+		if (addr.length() > 0) {
+			int slashIndex = addr.lastIndexOf("/");
+			if (slashIndex >= 0) {
+				return addr.substring(slashIndex + 1);
 			}
-		});
+			return addr;
+		}
+		return "";
+	}
+	
+	public static void closeChannel(Channel channel) {
+		final String localAddr = parseChannelLocalAddr(channel);
+		final String remoteAddr = parseChannelRemoteAddr(channel);
+		channel.close().addListener((ChannelFutureListener) channelFuture ->
+			logger.info("close the channel local address {} to remote address[{}] result: {}", localAddr ,remoteAddr, channelFuture.isSuccess()));
 	}
 }

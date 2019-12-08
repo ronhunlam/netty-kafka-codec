@@ -27,8 +27,8 @@ public class KafkaNettyProxyServer implements ProxyServer {
 	
 	public KafkaNettyProxyServer() {
 		serverBootstrap = new ServerBootstrap();
-		bossGroup = new NioEventLoopGroup();
-		workerGroup = new NioEventLoopGroup();
+		bossGroup = new NioEventLoopGroup(1);
+		workerGroup = new NioEventLoopGroup(8);
 		serverBootstrap
 			.group(bossGroup, workerGroup)
 			.channel(NioServerSocketChannel.class)
@@ -39,7 +39,7 @@ public class KafkaNettyProxyServer implements ProxyServer {
 			.option(ChannelOption.SO_RCVBUF, 65535)
 			.option(ChannelOption.SO_SNDBUF, 65535)
 			.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
-			.localAddress(new InetSocketAddress(localProxyPort))
+			.localAddress("127.0.0.1", localProxyPort)
 			.childOption(ChannelOption.AUTO_READ, false)
 			.childHandler(new ChannelInitializer<SocketChannel>() {
 				@Override

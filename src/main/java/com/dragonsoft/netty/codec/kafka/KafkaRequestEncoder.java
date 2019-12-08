@@ -1,6 +1,7 @@
 package com.dragonsoft.netty.codec.kafka;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;
 import org.slf4j.Logger;
@@ -16,6 +17,11 @@ import static com.dragonsoft.netty.codec.kafka.KafkaNettyProxyConfig.LOGGER_NAME
  */
 public class KafkaRequestEncoder extends MessageToByteEncoder<ByteBuffer> {
 	private static final Logger logger = LoggerFactory.getLogger(LOGGER_NAME);
+	private final Channel inboundChannel;
+	
+	public KafkaRequestEncoder(Channel inboundChannel) {
+		this.inboundChannel = inboundChannel;
+	}
 	
 	@Override
 	protected void encode(ChannelHandlerContext ctx, ByteBuffer response, ByteBuf byteBuf) throws Exception {
