@@ -12,6 +12,9 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 
+import static com.dragonsoft.netty.codec.kafka.ChannelUtil.parseChannelLocalAddr;
+import static com.dragonsoft.netty.codec.kafka.ChannelUtil.parseChannelRemoteAddr;
+
 /**
  * @author: ronhunlam
  * date:2019/8/2 18:58
@@ -25,26 +28,32 @@ public class KafkaRequestDecoder extends LengthFieldBasedFrameDecoder {
 		super(MAX_FRAME_LENGTH, 0, 4, 0, 4);
 	}
 	
-	/** 将 {@link ByteBuffer in} 转换为 {@link AbstractRequest},并包装为 {@link KafkaNettyRequest} 对象
+	/**
+	 * 将 {@link ByteBuffer in} 转换为 {@link AbstractRequest},并包装为 {@link KafkaNettyRequest} 对象
+	 *
 	 * @param
 	 * @return Object
 	 * @throws
-	*/
+	 */
 	@Override
 	protected Object decode(ChannelHandlerContext ctx, ByteBuf in) throws Exception {
 		ByteBuf frame = null;
 		KafkaNettyRequest request = null;
 		try {
+			// if the frame is null, that indicates the tcp segment is sliced.
 			frame = (ByteBuf) super.decode(ctx, in);
-			ByteBuffer rawBuffer = frame.nioBuffer();
-			RequestHeader header = RequestHeader.parse(rawBuffer);
-			RequestContext requestContext = new RequestContext(header, header.clientId(), null, null, null, null);
-			RequestAndSize bodyAndSize = requestContext.parseRequest(rawBuffer);
-			AbstractRequest requestBody = bodyAndSize.request;
-			request = new KafkaNettyRequest(header, requestBody);
-			logger.info("inbound request ==========>" + request.toString());
+			if (frame != null) {
+				ByteBuffer rawBuffer = frame.nioBuffer();
+				RequestHeader header = RequestHeader.parse(rawBuffer);
+				RequestContext requestContext = new RequestContext(header, header.clientId(), null, null, null, null);
+				RequestAndSize bodyAndSize = requestContext.parseRequest(rawBuffer);
+				AbstractRequest requestBody = bodyAndSize.request;
+				request = new KafkaNettyRequest(header, requestBody);
+				logger.info("inbound request ==========> {}", request.toString());
+			}
 		} catch (Exception e) {
-			logger.error("encode exception, " + ChannelUtil.parseChannelRemoteAddr(ctx.channel()), e);
+			logger.error("encoding occurs exception local address {} remote address {}, exception: {}",
+				parseChannelLocalAddr(ctx.channel()), parseChannelRemoteAddr(ctx.channel()), e);
 			ChannelUtil.closeChannel(ctx.channel());
 		} finally {
 			if (null != frame) {

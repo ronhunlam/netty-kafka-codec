@@ -39,7 +39,7 @@ public class KafkaNettyProxyServer implements ProxyServer {
 			.option(ChannelOption.SO_RCVBUF, 65535)
 			.option(ChannelOption.SO_SNDBUF, 65535)
 			.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
-			.localAddress("127.0.0.1", localProxyPort)
+			.localAddress(localProxyPort)
 			.childOption(ChannelOption.AUTO_READ, false)
 			.childHandler(new ChannelInitializer<SocketChannel>() {
 				@Override
@@ -51,7 +51,7 @@ public class KafkaNettyProxyServer implements ProxyServer {
 						/*.addLast(new IdleStateHandler(0, 0, CHANNEL_MAXIDLE_TIMESECONDS))*/
 						/*.addLast(new KafkaNettyConnectHandler())*/
 						/*	.addLast(new KafkaNettyServerHandler());*/
-						.addLast(new KafkaNettyProxyFrontendHandler(KAFKA_HOST, KAFKA_PORT));
+						.addLast(new KafkaNettyProxyFrontendHandler());
 				}
 			});
 	}

@@ -18,8 +18,8 @@ import static com.dragonsoft.netty.codec.kafka.KafkaNettyProxyConfig.LOGGER_NAME
 public class KafkaNettyProxyBackendHandler extends ChannelInboundHandlerAdapter {
 	
 	private static Logger logger = LoggerFactory.getLogger(LOGGER_NAME);
-	private Channel inboundChannel;
-	private ResponseConvert responseConvert;
+	private final Channel inboundChannel;
+	private final ResponseConvert responseConvert;
 	
 	
 	public KafkaNettyProxyBackendHandler(Channel inboundChannel) {
@@ -39,7 +39,7 @@ public class KafkaNettyProxyBackendHandler extends ChannelInboundHandlerAdapter 
 	
 	@Override
 	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-		if (msg instanceof KafkaNettyResponse) {
+		if (msg != null && msg instanceof KafkaNettyResponse) {
 			KafkaNettyResponse response = (KafkaNettyResponse) msg;
 			ByteBuffer resonseBuffer = responseConvert.convertResponseToBuffer(response);
 			inboundChannel.writeAndFlush(resonseBuffer).addListener((ChannelFutureListener) future -> {
@@ -54,15 +54,11 @@ public class KafkaNettyProxyBackendHandler extends ChannelInboundHandlerAdapter 
 	
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-		ChannelUtil.closeChannel(inboundChannel);
+		ChannelUtil.closeChannel(ctx.channel());
 	}
 	
 	@Override
 	public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-		ChannelUtil.closeChannel(inboundChannel);
-	}
-	
-	private void saveRawMetadatResponse() {
-	
+		// ChannelUtil.closeChannel(inboundChannel);
 	}
 }

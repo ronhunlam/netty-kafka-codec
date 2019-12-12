@@ -1,7 +1,5 @@
 package com.dragonsoft.netty.codec.kafka;
 
-import org.apache.kafka.common.requests.FindCoordinatorResponse;
-
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -10,17 +8,17 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class CoordinatorCache {
 	
-	private static ConcurrentHashMap<String, FindCoordinatorResponse> cache = new ConcurrentHashMap<>();
+	private static final ConcurrentHashMap<String, NodeWrapper> cache = new ConcurrentHashMap<>();
 	
 	private CoordinatorCache() {
 	
 	}
 	
-	public static FindCoordinatorResponse getCoordinator(String groupId) {
+	public static NodeWrapper getCoordinator(String groupId) {
 		return cache.get(groupId);
 	}
 	
-	public static void putCoordinator(String groudId, FindCoordinatorResponse response) {
-		cache.put(groudId, response);
+	public static void putCoordinator(String groudId, NodeWrapper coordinator) {
+		cache.put(groudId, coordinator);
 	}
 }

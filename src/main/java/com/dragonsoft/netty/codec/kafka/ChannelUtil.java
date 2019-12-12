@@ -4,6 +4,7 @@ package com.dragonsoft.netty.codec.kafka;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandlerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,5 +55,11 @@ public class ChannelUtil {
 		final String remoteAddr = parseChannelRemoteAddr(channel);
 		channel.close().addListener((ChannelFutureListener) channelFuture ->
 			logger.info("close the channel local address {} to remote address[{}] result: {}", localAddr ,remoteAddr, channelFuture.isSuccess()));
+	}
+	
+	public static void readIfNeeded(ChannelHandlerContext ctx) {
+		if (!ctx.channel().config().isAutoRead()) {
+			ctx.read();
+		}
 	}
 }
