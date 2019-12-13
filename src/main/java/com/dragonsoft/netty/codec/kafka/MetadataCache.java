@@ -5,13 +5,14 @@ import org.apache.kafka.common.requests.MetadataResponse;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * cache the {@code Metadata}
+ * cache the {@link MetadataResponse}
  *
  * @author: ronhunlam
  * date:2019/12/7 16:12
  */
 public class MetadataCache {
 	
+	// assume that the proxy server only surrogate the single cluster.
 	private static volatile MetadataResponse metadataResponse;
 	
 	private static final ConcurrentHashMap<Integer, NodeWrapper> rawNodesInfos = new ConcurrentHashMap<>();

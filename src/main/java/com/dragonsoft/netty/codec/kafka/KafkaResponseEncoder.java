@@ -8,6 +8,8 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 
+import static com.dragonsoft.netty.codec.kafka.ChannelUtil.parseChannelLocalAddr;
+import static com.dragonsoft.netty.codec.kafka.ChannelUtil.parseChannelRemoteAddr;
 import static com.dragonsoft.netty.codec.kafka.KafkaNettyProxyConfig.LOGGER_NAME;
 
 /**
@@ -23,7 +25,9 @@ public class KafkaResponseEncoder extends MessageToByteEncoder<ByteBuffer> {
 			byteBuf.writeInt(response.remaining());
 			byteBuf.writeBytes(response);
 		} catch (Exception e) {
-			logger.error("encode exception, " + ChannelUtil.parseChannelRemoteAddr(ctx.channel()), e);
+			logger.error("outbound channle local address {} remote address {} encoding response occurs exception {}",
+				parseChannelLocalAddr(ctx.channel()),
+				parseChannelRemoteAddr(ctx.channel()), e);
 			ChannelUtil.closeChannel(ctx.channel());
 		}
 	}

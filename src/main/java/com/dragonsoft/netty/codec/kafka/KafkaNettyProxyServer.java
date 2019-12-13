@@ -9,6 +9,8 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 
@@ -19,6 +21,8 @@ import static com.dragonsoft.netty.codec.kafka.KafkaNettyProxyConfig.*;
  * date:2019/8/2 17:37
  */
 public class KafkaNettyProxyServer implements ProxyServer {
+	
+	private static final Logger logger = LoggerFactory.getLogger(KafkaNettyProxyServer.class);
 	
 	private ServerBootstrap serverBootstrap;
 	private EventLoopGroup bossGroup;
@@ -58,11 +62,13 @@ public class KafkaNettyProxyServer implements ProxyServer {
 	
 	@Override
 	public void start() {
+		logger.info("start the proxy server...");
 		channel = serverBootstrap.bind().syncUninterruptibly().channel();
 	}
 	
 	@Override
 	public void shutdown() {
+		logger.info("shutdown the proxy server...");
 		if (channel != null) {
 			channel.close();
 		}

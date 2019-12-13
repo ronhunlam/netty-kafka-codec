@@ -9,6 +9,8 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 
+import static com.dragonsoft.netty.codec.kafka.ChannelUtil.parseChannelLocalAddr;
+import static com.dragonsoft.netty.codec.kafka.ChannelUtil.parseChannelRemoteAddr;
 import static com.dragonsoft.netty.codec.kafka.KafkaNettyProxyConfig.LOGGER_NAME;
 
 /**
@@ -18,6 +20,7 @@ import static com.dragonsoft.netty.codec.kafka.KafkaNettyProxyConfig.LOGGER_NAME
 public class KafkaNettyProxyBackendHandler extends ChannelInboundHandlerAdapter {
 	
 	private static Logger logger = LoggerFactory.getLogger(LOGGER_NAME);
+	
 	private final Channel inboundChannel;
 	private final ResponseConvert responseConvert;
 	
@@ -33,7 +36,8 @@ public class KafkaNettyProxyBackendHandler extends ChannelInboundHandlerAdapter 
 	
 	@Override
 	public void channelActive(ChannelHandlerContext ctx) throws Exception {
-		logger.info("outbound channel active: " + ChannelUtil.parseChannelRemoteAddr(ctx.channel()));
+		logger.info("outbound channel local address {} remote address {} active", parseChannelLocalAddr(ctx.channel()),
+			parseChannelRemoteAddr(ctx.channel()));
 		ctx.channel().read();
 	}
 	
@@ -41,6 +45,8 @@ public class KafkaNettyProxyBackendHandler extends ChannelInboundHandlerAdapter 
 	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
 		if (msg != null && msg instanceof KafkaNettyResponse) {
 			KafkaNettyResponse response = (KafkaNettyResponse) msg;
+			logger.info("outbound channel local address {} remote address {} read response {}", parseChannelLocalAddr(ctx.channel()),
+				parseChannelRemoteAddr(ctx.channel()), response);
 			ByteBuffer resonseBuffer = responseConvert.convertResponseToBuffer(response);
 			inboundChannel.writeAndFlush(resonseBuffer).addListener((ChannelFutureListener) future -> {
 				if (future.isSuccess()) {
@@ -54,11 +60,14 @@ public class KafkaNettyProxyBackendHandler extends ChannelInboundHandlerAdapter 
 	
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+		logger.info("outbound channel local address {} remote address {} exception {}", parseChannelLocalAddr(ctx.channel()),
+			parseChannelRemoteAddr(ctx.channel()), cause);
 		ChannelUtil.closeChannel(ctx.channel());
 	}
 	
 	@Override
 	public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-		// ChannelUtil.closeChannel(inboundChannel);
+		logger.info("outbound channel local address {} remote address {} inactive", parseChannelLocalAddr(ctx.channel()),
+			parseChannelRemoteAddr(ctx.channel()));
 	}
 }

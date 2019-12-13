@@ -1,6 +1,6 @@
 package com.dragonsoft.netty.codec.kafka;
 
-/**
+/** Copy the kafka node {@link org.apache.kafka.common.Node}
  * @author: ronhunlam
  * date:2019/12/10 22:49
  */

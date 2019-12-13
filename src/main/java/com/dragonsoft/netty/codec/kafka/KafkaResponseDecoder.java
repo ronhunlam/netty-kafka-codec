@@ -25,6 +25,7 @@ public class KafkaResponseDecoder extends LengthFieldBasedFrameDecoder {
 	
 	private static Logger logger = LoggerFactory.getLogger(KafkaRequestDecoder.class.getName());
 	private static final int MAX_FRAME_LENGTH = 100 * 1024 * 1024;
+	// left for future
 	private final Channel inboundChannel;
 	private final Queue<KafkaNettyRequest> cachedRequests;
 	
@@ -44,20 +45,22 @@ public class KafkaResponseDecoder extends LengthFieldBasedFrameDecoder {
 			if (frame != null) {
 				ByteBuffer responseBuffer = frame.nioBuffer();
 				KafkaNettyRequest request = cachedRequests.poll();
-				logger.info("outbound begin to read {} response", request.getRequestHeader().apiKey());
 				if (request != null) {
 					// the response is corresponding to the request :).
+					logger.info("outbound begin to read {} response", request.getRequestHeader().apiKey());
 					RequestHeader requestHeader = request.getRequestHeader();
 					ResponseHeader responseHeader = ResponseHeader.parse(responseBuffer);
 					Struct responseStruct = requestHeader.apiKey().parseResponse(requestHeader.apiVersion(), responseBuffer);
 					AbstractResponse responsBody = AbstractResponse.
 						parseResponse(requestHeader.apiKey(), responseStruct, requestHeader.apiVersion());
 					response = new KafkaNettyResponse(request, responseHeader, responsBody);
-					logger.info("outbound read {} response {}", request.getRequestHeader().apiKey(), response.toString());
+					logger.info("outbound channel local address {} remote address {} read {} ==========> response {}",
+						parseChannelLocalAddr(ctx.channel()), parseChannelRemoteAddr(ctx.channel()),
+						request.getRequestHeader().apiKey(), response.toString());
 				}
 			}
 		} catch (Exception e) {
-			logger.error("encoding occurs exception local address {} remote address {}, exception: {}",
+			logger.error("outbound channel local address {} remote address {} decoding response occurs exception: {}",
 				parseChannelLocalAddr(ctx.channel()), parseChannelRemoteAddr(ctx.channel()), e);
 		} finally {
 			if (null != frame) {

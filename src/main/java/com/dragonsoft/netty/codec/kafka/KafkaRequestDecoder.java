@@ -49,10 +49,11 @@ public class KafkaRequestDecoder extends LengthFieldBasedFrameDecoder {
 				RequestAndSize bodyAndSize = requestContext.parseRequest(rawBuffer);
 				AbstractRequest requestBody = bodyAndSize.request;
 				request = new KafkaNettyRequest(header, requestBody);
-				logger.info("inbound request ==========> {}", request.toString());
+				logger.info("inbound channel local address {} remote address {} read request ==========> {}",
+					parseChannelLocalAddr(ctx.channel()), parseChannelRemoteAddr(ctx.channel()), request.toString());
 			}
 		} catch (Exception e) {
-			logger.error("encoding occurs exception local address {} remote address {}, exception: {}",
+			logger.error("inbound channel local address {} remote address {} decoding request occurs exception: {}",
 				parseChannelLocalAddr(ctx.channel()), parseChannelRemoteAddr(ctx.channel()), e);
 			ChannelUtil.closeChannel(ctx.channel());
 		} finally {

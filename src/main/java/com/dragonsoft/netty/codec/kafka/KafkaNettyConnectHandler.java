@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 
 import static com.dragonsoft.netty.codec.kafka.KafkaNettyProxyConfig.LOGGER_NAME;
 
-/**
+/** Connection manage handler
  * @author: ronhunlam
  * date:2019/8/15 13:57
  */

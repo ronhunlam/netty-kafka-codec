@@ -4,10 +4,7 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.util.AttributeKey;
 import io.netty.util.ReferenceCountUtil;
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.GenericFutureListener;
 import io.netty.util.internal.StringUtil;
 import org.apache.commons.lang.StringUtils;
 import org.apache.kafka.common.Node;
@@ -22,7 +19,6 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.dragonsoft.netty.codec.kafka.ChannelUtil.parseChannelLocalAddr;
 import static com.dragonsoft.netty.codec.kafka.ChannelUtil.parseChannelRemoteAddr;
@@ -39,20 +35,17 @@ public class KafkaNettyProxyFrontendHandler extends ChannelInboundHandlerAdapter
 	
 	private static Logger logger = LoggerFactory.getLogger(LOGGER_NAME);
 	
-	private final AtomicBoolean isFirstInitial = new AtomicBoolean(true);
 	private final RequestConvert requestConvert;
-	public static final AttributeKey<KafkaNettyRequest> requestKey = AttributeKey.newInstance("request");
 	private final Queue<KafkaNettyRequest> cachedRequests;
 	private Channel apiVersionChannel = null;
 	private Channel newChannel = null;
 	private final Set<Channel> channels = new HashSet<>();
 	
 	public KafkaNettyProxyFrontendHandler() {
-		this(new DefaultRequestConvert(), 32);
+		this(new DefaultRequestConvert(), 1000);
 	}
 	
 	public KafkaNettyProxyFrontendHandler(RequestConvert convert, int queueSize) {
-		isFirstInitial.compareAndSet(true, false);
 		this.requestConvert = convert;
 		// maybe used for multi-thread.
 		this.cachedRequests = new ArrayBlockingQueue<>(queueSize);
@@ -60,12 +53,22 @@ public class KafkaNettyProxyFrontendHandler extends ChannelInboundHandlerAdapter
 	
 	@Override
 	public void channelActive(ChannelHandlerContext ctx) throws Exception {
-		logger.info("inbound channel active local : " + parseChannelLocalAddr(ctx.channel()) + " remote: " + parseChannelRemoteAddr(ctx.channel()));
+		logger.info("inbound channel local address {} remote address {} active", parseChannelLocalAddr(ctx.channel()),
+			parseChannelRemoteAddr(ctx.channel()));
 		ctx.channel().read();
 	}
 	
 	@Override
 	public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+		logger.info("inbound channel local address {} remote address {} inactive", parseChannelLocalAddr(ctx.channel()),
+			parseChannelRemoteAddr(ctx.channel()));
+	}
+	
+	@Override
+	public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
+		logger.info("inbound channel local address {} remote address {} unregister from selector", parseChannelLocalAddr(ctx.channel()),
+			parseChannelRemoteAddr(ctx.channel()));
+		clearCacheRequests();
 		for (Channel channel : channels) {
 			ChannelUtil.closeChannel(channel);
 		}
@@ -73,7 +76,9 @@ public class KafkaNettyProxyFrontendHandler extends ChannelInboundHandlerAdapter
 	
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-		logger.error("inbound channel exception: ", cause);
+		logger.error("inbound channel local address {} remote address {} exception {}", parseChannelLocalAddr(ctx.channel()),
+			parseChannelRemoteAddr(ctx.channel()), cause);
+		clearCacheRequests();
 		ctx.channel().close();
 	}
 	
@@ -82,8 +87,9 @@ public class KafkaNettyProxyFrontendHandler extends ChannelInboundHandlerAdapter
 		
 		if (msg != null && msg instanceof KafkaNettyRequest) {
 			KafkaNettyRequest request = (KafkaNettyRequest) msg;
+			logger.info("outbound channel local address {} remote address {} read request {}", parseChannelLocalAddr(ctx.channel()),
+				parseChannelRemoteAddr(ctx.channel()), request);
 			ApiKeys apiKeys = request.getRequestBody().api;
-			//ctx.channel().attr(requestKey).set(request);
 			cachedRequests.offer(request);
 			if (apiKeys == API_VERSIONS || apiKeys == METADATA || apiKeys == FIND_COORDINATOR) {
 				apiVersionChannel = getOrOpenStaticOutboundChannel(ctx.channel(), request);
@@ -94,25 +100,32 @@ public class KafkaNettyProxyFrontendHandler extends ChannelInboundHandlerAdapter
 				channels.add(getOrOpenFetchChannel(ctx.channel(), request));
 			} else if (apiKeys == JOIN_GROUP || apiKeys == SYNC_GROUP
 				|| apiKeys == HEARTBEAT || apiKeys == OFFSET_FETCH
-				|| apiKeys == OFFSET_COMMIT) {
+				|| apiKeys == OFFSET_COMMIT || apiKeys == LEAVE_GROUP) {
 				channels.add(getOrOpenJoinGroupChannel(ctx.channel(), request));
 			} else {
-				logger.info("outbound channel write unknown request {} to channel {} ", request.toString(), parseChannelRemoteAddr(apiVersionChannel));
-				/*ByteBuffer requestBuffer = requestConvert.convertRequestToBuffer(request);
+				logger.info("write remaining request {} to apiVersionChannel local address {} remote address {}",
+					request.toString(), parseChannelLocalAddr(ctx.channel()), parseChannelRemoteAddr(apiVersionChannel));
+				ByteBuffer requestBuffer = requestConvert.convertRequestToBuffer(request);
 				apiVersionChannel.writeAndFlush(requestBuffer).addListener((ChannelFutureListener) future -> {
 					if (future.isSuccess()) {
-						logger.info("outbound channel write request {} to channel {} successfully ", request.toString(), parseChannelRemoteAddr(apiVersionChannel));
-						//addOriginRequest(ctx.channel().id().asShortText(), request);
 						ctx.channel().read();
 					} else {
 						future.channel().close();
 					}
-				});*/
+				});
 			}
 		}
 		ReferenceCountUtil.release(msg);
 	}
 	
+	/**
+	 * Open fixed channel to get {@link ApiVersionsResponse} or {@link MetadataResponse} etc.
+	 *
+	 * @param inboundChannel
+	 * @param request
+	 * @return {@link Channel}
+	 * @throws
+	 */
 	private Channel getOrOpenStaticOutboundChannel(Channel inboundChannel, KafkaNettyRequest request) {
 		if (apiVersionChannel != null) {
 			writeRequestToChannel(apiVersionChannel, request).addListener(future -> {
@@ -135,14 +148,17 @@ public class KafkaNettyProxyFrontendHandler extends ChannelInboundHandlerAdapter
 		return cf.channel();
 	}
 	
+	/**
+	 * Open the channel to broker for writing {@link ProduceRequest}
+	 *
+	 * @param inboundChannel
+	 * @param request
+	 * @return {@link Channel}
+	 * @throws
+	 */
 	private Channel getOrOpenProduceChannelAndWrite(Channel inboundChannel, KafkaNettyRequest request) {
 		if (newChannel != null) {
-			writeRequestToChannel(newChannel, request).addListener(future -> {
-				if (future.isSuccess()) {
-					inboundChannel.read();
-				}
-			});
-			return newChannel;
+			writeToNewChannelAndReadFromInboundChannel(request, inboundChannel);
 		}
 		ProduceRequest produceRequest = (ProduceRequest) request.getRequestBody();
 		Map<TopicPartition, MemoryRecords> partitionRecords = produceRequest.partitionRecordsOrFail();
@@ -175,33 +191,23 @@ public class KafkaNettyProxyFrontendHandler extends ChannelInboundHandlerAdapter
 				return apiVersionChannel;
 			} else {
 				ChannelFuture channelFuture = openOutboundChannel(inboundChannel, realIp, port);
-				newChannel = channelFuture.channel();
-				channelFuture.addListener(future -> {
-					if (future.isSuccess()) {
-						writeRequestToChannel(newChannel, request).addListener(future1 -> {
-							if (future1.isSuccess()) {
-								inboundChannel.read();
-							}
-						});
-					}
-				});
-				return newChannel;
+				return openNewChannelAndWriteThenReadFromInboundChannel(channelFuture, request, inboundChannel);
 			}
 		}
 		return apiVersionChannel;
 	}
 	
+	/**
+	 * Get or Open the fetch channel for {@link JoinGroupRequest}
+	 *
+	 * @param inboundChannel
+	 * @param request
+	 * @return {@link Channel}
+	 * @throws
+	 */
 	private Channel getOrOpenJoinGroupChannel(Channel inboundChannel, KafkaNettyRequest request) {
 		if (newChannel != null) {
-			writeRequestToChannel(newChannel, request).addListener(new GenericFutureListener<Future<? super Void>>() {
-				@Override
-				public void operationComplete(Future<? super Void> future) throws Exception {
-					if (future.isSuccess()) {
-						inboundChannel.read();
-					}
-				}
-			});
-			return newChannel;
+			writeToNewChannelAndReadFromInboundChannel(request, inboundChannel);
 		}
 		AbstractRequest requestBody = request.getRequestBody();
 		String groupId = "";
@@ -233,30 +239,20 @@ public class KafkaNettyProxyFrontendHandler extends ChannelInboundHandlerAdapter
 			return apiVersionChannel;
 		}
 		ChannelFuture channelFuture = openOutboundChannel(inboundChannel, realIp, port);
-		newChannel = channelFuture.channel();
-		channelFuture.addListener(future -> {
-			if (future.isSuccess()) {
-				writeRequestToChannel(newChannel, request).addListener(future1 -> {
-					if (future1.isSuccess()) {
-						inboundChannel.read();
-					}
-				});
-			}
-		});
-		return newChannel;
+		return openNewChannelAndWriteThenReadFromInboundChannel(channelFuture, request, inboundChannel);
 	}
 	
+	/**
+	 * Get or Open the fetch channel for {@link FetchRequest}
+	 *
+	 * @param inboundChannel
+	 * @param request
+	 * @return {@link Channel}
+	 * @throws
+	 */
 	private Channel getOrOpenFetchChannel(Channel inboundChannel, KafkaNettyRequest request) {
 		if (newChannel != null) {
-			writeRequestToChannel(newChannel, request).addListener(new GenericFutureListener<Future<? super Void>>() {
-				@Override
-				public void operationComplete(Future<? super Void> future) throws Exception {
-					if (future.isSuccess()) {
-						inboundChannel.read();
-					}
-				}
-			});
-			return newChannel;
+			writeToNewChannelAndReadFromInboundChannel(request, inboundChannel);
 		}
 		FetchRequest fetchRequest = (FetchRequest) request.getRequestBody();
 		Map<TopicPartition, FetchRequest.PartitionData> partitionDatas = fetchRequest.fetchData();
@@ -297,19 +293,18 @@ public class KafkaNettyProxyFrontendHandler extends ChannelInboundHandlerAdapter
 			return apiVersionChannel;
 		}
 		ChannelFuture channelFuture = openOutboundChannel(inboundChannel, realIp, port);
-		newChannel = channelFuture.channel();
-		channelFuture.addListener(future -> {
-			if (future.isSuccess()) {
-				writeRequestToChannel(newChannel, request).addListener(future1 -> {
-					if (future1.isSuccess()) {
-						inboundChannel.read();
-					}
-				});
-			}
-		});
-		return newChannel;
+		return openNewChannelAndWriteThenReadFromInboundChannel(channelFuture, request, inboundChannel);
 	}
 	
+	/**
+	 * Check the {@code realIp} and {@code port} are whether equal to the {@code apiVersionChannel}’s
+	 * host and port respectively.
+	 *
+	 * @param realIp
+	 * @param port
+	 * @return {@code boolean}
+	 * @throws
+	 */
 	private boolean checkHostAndPortIsNew(String realIp, int port) {
 		InetSocketAddress inetSocketAddress = (InetSocketAddress) apiVersionChannel.remoteAddress();
 		String apiVersionHost = inetSocketAddress.getHostString();
@@ -352,8 +347,76 @@ public class KafkaNettyProxyFrontendHandler extends ChannelInboundHandlerAdapter
 		return f;
 	}
 	
+	/**
+	 * Write {@link KafkaNettyRequest} to {@Code OutboundChannel}
+	 *
+	 * @param outboundChannel
+	 * @param request
+	 * @return {@link ChannelFuture}
+	 * @throws
+	 */
 	private ChannelFuture writeRequestToChannel(Channel outboundChannel, KafkaNettyRequest request) {
 		ByteBuffer buffer = requestConvert.convertRequestToBuffer(request);
 		return outboundChannel.writeAndFlush(buffer);
+	}
+	
+	/**
+	 * write to new channel then read from inbound channel.
+	 *
+	 * @param request
+	 * @param inboundChannel
+	 * @return {@link Channel}
+	 * @throws
+	 */
+	private Channel writeToNewChannelAndReadFromInboundChannel(KafkaNettyRequest request, Channel inboundChannel) {
+		
+		writeRequestToChannel(newChannel, request).addListener(future -> {
+			if (future.isSuccess()) {
+				inboundChannel.read();
+			}
+		});
+		return newChannel;
+	}
+	
+	/**
+	 * open new channel and write then read from inbound channel.
+	 *
+	 * @param channelFuture
+	 * @param request
+	 * @param inboundChannel
+	 * @return {@link Channel}
+	 * @throws
+	 */
+	private Channel openNewChannelAndWriteThenReadFromInboundChannel(ChannelFuture channelFuture, KafkaNettyRequest request,
+	                                                                 Channel inboundChannel) {
+		newChannel = channelFuture.channel();
+		channelFuture.addListener(future -> {
+			if (future.isSuccess()) {
+				writeRequestToChannel(newChannel, request).addListener(future1 -> {
+					if (future1.isSuccess()) {
+						inboundChannel.read();
+					}
+				});
+			}
+		});
+		return newChannel;
+	}
+	
+	/**
+	 * clear the cache requests for avoiding OOM.
+	 *
+	 * @param
+	 * @return
+	 * @throws
+	 */
+	private void clearCacheRequests() {
+		if (cachedRequests != null && !cachedRequests.isEmpty()) {
+			Iterator<KafkaNettyRequest> requestIterator = cachedRequests.iterator();
+			while (requestIterator.hasNext()) {
+				KafkaNettyRequest request = requestIterator.next();
+				logger.info("remove the cached request {}", request.toString());
+				requestIterator.remove();
+			}
+		}
 	}
 }

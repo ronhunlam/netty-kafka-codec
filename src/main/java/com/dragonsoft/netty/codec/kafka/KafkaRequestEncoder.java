@@ -9,6 +9,8 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 
+import static com.dragonsoft.netty.codec.kafka.ChannelUtil.parseChannelLocalAddr;
+import static com.dragonsoft.netty.codec.kafka.ChannelUtil.parseChannelRemoteAddr;
 import static com.dragonsoft.netty.codec.kafka.KafkaNettyProxyConfig.LOGGER_NAME;
 
 /**
@@ -17,6 +19,7 @@ import static com.dragonsoft.netty.codec.kafka.KafkaNettyProxyConfig.LOGGER_NAME
  */
 public class KafkaRequestEncoder extends MessageToByteEncoder<ByteBuffer> {
 	private static final Logger logger = LoggerFactory.getLogger(LOGGER_NAME);
+	// left for future.
 	private final Channel inboundChannel;
 	
 	public KafkaRequestEncoder(Channel inboundChannel) {
@@ -29,7 +32,8 @@ public class KafkaRequestEncoder extends MessageToByteEncoder<ByteBuffer> {
 			byteBuf.writeInt(response.remaining());
 			byteBuf.writeBytes(response);
 		} catch (Exception e) {
-			logger.error("encode exception: " + ChannelUtil.parseChannelRemoteAddr(ctx.channel()), e);
+			logger.error("inbound channel local address {} remote address {} request encode exception {}",
+				parseChannelLocalAddr(ctx.channel()), parseChannelRemoteAddr(ctx.channel()), e);
 			ChannelUtil.closeChannel(ctx.channel());
 		}
 	}
