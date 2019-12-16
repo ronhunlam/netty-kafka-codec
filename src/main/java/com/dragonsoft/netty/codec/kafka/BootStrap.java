@@ -20,6 +20,7 @@ public class BootStrap {
 		} catch (Exception e) {
 			logger.error("the netty kafka proxy encounters exception,begin to shutdown", e);
 			server.shutdown();
+			System.exit(-1); // issue error signal
 		}
 	}
 }

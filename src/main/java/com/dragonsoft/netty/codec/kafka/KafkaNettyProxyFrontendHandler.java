@@ -98,6 +98,8 @@ public class KafkaNettyProxyFrontendHandler extends ChannelInboundHandlerAdapter
 				channels.add(getOrOpenProduceChannelAndWrite(ctx.channel(), request));
 			} else if (apiKeys == FETCH) {
 				channels.add(getOrOpenFetchChannel(ctx.channel(), request));
+			} else if (apiKeys == LIST_OFFSETS) {
+				channels.add(getOrOpenListOffsetChannel(ctx.channel(), request));
 			} else if (apiKeys == JOIN_GROUP || apiKeys == SYNC_GROUP
 				|| apiKeys == HEARTBEAT || apiKeys == OFFSET_FETCH
 				|| apiKeys == OFFSET_COMMIT || apiKeys == LEAVE_GROUP) {
@@ -229,6 +231,52 @@ public class KafkaNettyProxyFrontendHandler extends ChannelInboundHandlerAdapter
 		NodeWrapper coordinator = CoordinatorCache.getCoordinator(groupId);
 		String host = coordinator.getHost();
 		int port = coordinator.getPort();
+		// convert hostname to real ip.
+		String realIp = getRealIpFromHostName(host);
+		if (!checkHostAndPortIsNew(realIp, port)) {
+			writeRequestToChannel(apiVersionChannel, request).addListener(future -> {
+				if (future.isSuccess()) {
+					inboundChannel.read();
+				}
+			});
+			return apiVersionChannel;
+		}
+		ChannelFuture channelFuture = openOutboundChannel(inboundChannel, realIp, port);
+		return openNewChannelAndWriteThenReadFromInboundChannel(channelFuture, request, inboundChannel);
+	}
+	
+	/**
+	 * get or open the channel for {@link ListOffsetRequest}
+	 *
+	 * @param inboundChannel
+	 * @param request
+	 * @return {@link Channel}
+	 * @throws
+	 */
+	private Channel getOrOpenListOffsetChannel(Channel inboundChannel, KafkaNettyRequest request) {
+		if (newChannel != null) {
+			writeToNewChannelAndReadFromInboundChannel(request, inboundChannel);
+		}
+		ListOffsetRequest listOffsetRequest = (ListOffsetRequest) request.getRequestBody();
+		Map<TopicPartition, ListOffsetRequest.PartitionData> partitionRecords = listOffsetRequest.partitionTimestamps();
+		MetadataResponse cache = MetadataCache.getCache();
+		Collection<MetadataResponse.TopicMetadata> topicMetadatas = cache.topicMetadata();
+		TopicPartition topicPartition;
+		String host = "";
+		int port = 0;
+		for (MetadataResponse.TopicMetadata topicMetadata : topicMetadatas) {
+			Collection<MetadataResponse.PartitionMetadata> partitionMetadatas = topicMetadata.partitionMetadata();
+			for (MetadataResponse.PartitionMetadata partitionMetadata : partitionMetadatas) {
+				int partition = partitionMetadata.partition();
+				topicPartition = new TopicPartition(topicMetadata.topic(), partition);
+				if (partitionRecords.get(topicPartition) != null) {
+					Node leader = partitionMetadata.leader();
+					NodeWrapper rawLeader = MetadataCache.getNodeInfo(leader.id());
+					host = rawLeader.getHost();
+					port = rawLeader.getPort();
+				}
+			}
+		}
 		String realIp = getRealIpFromHostName(host);
 		if (!checkHostAndPortIsNew(realIp, port)) {
 			writeRequestToChannel(apiVersionChannel, request).addListener(future -> {

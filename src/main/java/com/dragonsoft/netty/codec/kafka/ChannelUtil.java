@@ -54,7 +54,7 @@ public class ChannelUtil {
 		final String localAddr = parseChannelLocalAddr(channel);
 		final String remoteAddr = parseChannelRemoteAddr(channel);
 		channel.close().addListener((ChannelFutureListener) channelFuture ->
-			logger.info("close the channel local address {} to remote address[{}] result: {}", localAddr ,remoteAddr, channelFuture.isSuccess()));
+			logger.info("close the channel local address {} to remote address {} result: {}", localAddr ,remoteAddr, channelFuture.isSuccess()));
 	}
 	
 	public static void readIfNeeded(ChannelHandlerContext ctx) {
