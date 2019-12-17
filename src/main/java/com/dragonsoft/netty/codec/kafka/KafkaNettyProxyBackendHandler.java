@@ -9,17 +9,18 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 
-import static com.dragonsoft.netty.codec.kafka.ChannelUtil.parseChannelLocalAddr;
-import static com.dragonsoft.netty.codec.kafka.ChannelUtil.parseChannelRemoteAddr;
-import static com.dragonsoft.netty.codec.kafka.KafkaNettyProxyConfig.LOGGER_NAME;
+import static com.dragonsoft.netty.codec.kafka.ChannelUtil.getInboundChannel;
+import static com.dragonsoft.netty.codec.kafka.ChannelUtil.getOutboundChannel;
 
 /**
+ * this handler is used for converting {@link KafkaNettyResponse} to {@link ByteBuffer}
+ *
  * @author: ronhunlam
  * date:2019/8/19 16:29
  */
 public class KafkaNettyProxyBackendHandler extends ChannelInboundHandlerAdapter {
 	
-	private static Logger logger = LoggerFactory.getLogger(LOGGER_NAME);
+	private static Logger logger = LoggerFactory.getLogger(KafkaNettyProxyBackendHandler.class);
 	
 	private final Channel inboundChannel;
 	private final ResponseConvert responseConvert;
@@ -36,8 +37,8 @@ public class KafkaNettyProxyBackendHandler extends ChannelInboundHandlerAdapter 
 	
 	@Override
 	public void channelActive(ChannelHandlerContext ctx) throws Exception {
-		logger.info("outbound channel local address {} remote address {} active", parseChannelLocalAddr(ctx.channel()),
-			parseChannelRemoteAddr(ctx.channel()));
+		logger.info("outbound channel {} corresponding inbound channel {} active",
+			getOutboundChannel(ctx.channel()), getInboundChannel(inboundChannel));
 		ctx.channel().read();
 	}
 	
@@ -45,8 +46,8 @@ public class KafkaNettyProxyBackendHandler extends ChannelInboundHandlerAdapter 
 	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
 		if (msg != null && msg instanceof KafkaNettyResponse) {
 			KafkaNettyResponse response = (KafkaNettyResponse) msg;
-			logger.info("outbound channel local address {} remote address {} read response {}", parseChannelLocalAddr(ctx.channel()),
-				parseChannelRemoteAddr(ctx.channel()), response);
+			logger.info("outbound channel {} corresponding inbound channel {} reads response {}",
+				getOutboundChannel(ctx.channel()), getInboundChannel(inboundChannel), response);
 			ByteBuffer resonseBuffer = responseConvert.convertResponseToBuffer(response);
 			inboundChannel.writeAndFlush(resonseBuffer).addListener((ChannelFutureListener) future -> {
 				if (future.isSuccess()) {
@@ -60,14 +61,14 @@ public class KafkaNettyProxyBackendHandler extends ChannelInboundHandlerAdapter 
 	
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-		logger.info("outbound channel local address {} remote address {} exception {}", parseChannelLocalAddr(ctx.channel()),
-			parseChannelRemoteAddr(ctx.channel()), cause);
+		logger.info("outbound channel {} corresponding inbound channel {} occurs exception {}",
+			getOutboundChannel(ctx.channel()), getInboundChannel(inboundChannel), cause);
 		ChannelUtil.closeChannel(ctx.channel());
 	}
 	
 	@Override
 	public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-		logger.info("outbound channel local address {} remote address {} inactive", parseChannelLocalAddr(ctx.channel()),
-			parseChannelRemoteAddr(ctx.channel()));
+		logger.info("outbound channel {} corresponding inbound channel {} inactive",
+			getOutboundChannel(ctx.channel()), getInboundChannel(inboundChannel));
 	}
 }

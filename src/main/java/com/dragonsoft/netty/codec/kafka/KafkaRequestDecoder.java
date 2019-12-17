@@ -12,17 +12,18 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 
-import static com.dragonsoft.netty.codec.kafka.ChannelUtil.parseChannelLocalAddr;
-import static com.dragonsoft.netty.codec.kafka.ChannelUtil.parseChannelRemoteAddr;
+import static com.dragonsoft.netty.codec.kafka.ChannelUtil.getInboundChannel;
+import static com.dragonsoft.netty.codec.kafka.KafkaNettyProxyConfig.MAX_FRAME_LENGTH;
 
 /**
+ * handler for inbound channel.
+ *
  * @author: ronhunlam
  * date:2019/8/2 18:58
  */
 public class KafkaRequestDecoder extends LengthFieldBasedFrameDecoder {
 	
-	private static Logger logger = LoggerFactory.getLogger(KafkaRequestDecoder.class.getName());
-	private static final int MAX_FRAME_LENGTH = 100 * 1024 * 1024;// 100MB
+	private static Logger logger = LoggerFactory.getLogger(KafkaRequestDecoder.class);
 	
 	public KafkaRequestDecoder() {
 		super(MAX_FRAME_LENGTH, 0, 4, 0, 4);
@@ -49,12 +50,12 @@ public class KafkaRequestDecoder extends LengthFieldBasedFrameDecoder {
 				RequestAndSize bodyAndSize = requestContext.parseRequest(rawBuffer);
 				AbstractRequest requestBody = bodyAndSize.request;
 				request = new KafkaNettyRequest(header, requestBody);
-				logger.info("inbound channel local address {} remote address {} read request ==========> {}",
-					parseChannelLocalAddr(ctx.channel()), parseChannelRemoteAddr(ctx.channel()), request.toString());
+				logger.info("inbound channel {} read {} request ==========> {}", getInboundChannel(ctx.channel()), header.apiKey()
+					, request.toString());
 			}
 		} catch (Exception e) {
-			logger.error("inbound channel local address {} remote address {} decoding request occurs exception: {}",
-				parseChannelLocalAddr(ctx.channel()), parseChannelRemoteAddr(ctx.channel()), e);
+			logger.error("inbound channel {} decoding request occurs exception: {}",
+				getInboundChannel(ctx.channel()), e);
 			ChannelUtil.closeChannel(ctx.channel());
 		} finally {
 			if (null != frame) {

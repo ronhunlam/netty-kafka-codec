@@ -5,7 +5,7 @@ import org.apache.kafka.common.requests.MetadataResponse;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * cache the {@link MetadataResponse}
+ * cache {@link MetadataResponse}
  *
  * @author: ronhunlam
  * date:2019/12/7 16:12

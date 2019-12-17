@@ -7,40 +7,36 @@ import io.netty.handler.timeout.IdleStateEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static com.dragonsoft.netty.codec.kafka.KafkaNettyProxyConfig.LOGGER_NAME;
+import static com.dragonsoft.netty.codec.kafka.ChannelUtil.getInboundChannel;
 
 /** Connection manage handler
  * @author: ronhunlam
  * date:2019/8/15 13:57
  */
 public class KafkaNettyConnectHandler extends ChannelDuplexHandler {
-	private static Logger logger = LoggerFactory.getLogger(LOGGER_NAME);
+	private static Logger logger = LoggerFactory.getLogger(KafkaNettyConnectHandler.class);
 	
 	@Override
 	public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
-		final String remoteAddr = ChannelUtil.parseChannelRemoteAddr(ctx.channel());
-		logger.info("Channel to remoteAddress {} is registered", remoteAddr);
+		logger.info("inboundChannel {} is registered", getInboundChannel(ctx.channel()));
 		super.channelRegistered(ctx);
 	}
 	
 	@Override
 	public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
-		final String remoteAddr = ChannelUtil.parseChannelRemoteAddr(ctx.channel());
-		logger.info("Channel to remoteAddress {} is unregistered", remoteAddr);
+		logger.info("inboundChannel {} is unregistered", getInboundChannel(ctx.channel()));
 		super.channelUnregistered(ctx);
 	}
 	
 	@Override
 	public void channelActive(ChannelHandlerContext ctx) throws Exception {
-		final String remoteAddr = ChannelUtil.parseChannelRemoteAddr(ctx.channel());
-		logger.info("Channel to remoteAddress {} is active", remoteAddr);
+		logger.info("inboundChannel {} is active", getInboundChannel(ctx.channel()));
 		super.channelActive(ctx);
 	}
 	
 	@Override
 	public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-		final String remoteAddr = ChannelUtil.parseChannelRemoteAddr(ctx.channel());
-		logger.info("Channel to remoteAddress {} is inactive", remoteAddr);
+		logger.info("inboundChannel {} is inactive", getInboundChannel(ctx.channel()));
 		super.channelInactive(ctx);
 	}
 	
@@ -48,9 +44,8 @@ public class KafkaNettyConnectHandler extends ChannelDuplexHandler {
 	public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
 		if (evt instanceof IdleStateEvent) {
 			IdleStateEvent stateEvent = (IdleStateEvent) evt;
-			if (stateEvent.state() == IdleState.ALL_IDLE) {
-				final String remoteAddress = ChannelUtil.parseChannelRemoteAddr(ctx.channel());
-				logger.info("connection to remoteAddress {} is all idle", remoteAddress);
+			if (stateEvent.state() == IdleState.ALL_IDLE) { ;
+				logger.info("inboundChannel {} is idle", getInboundChannel(ctx.channel()));
 				ChannelUtil.closeChannel(ctx.channel());
 			}
 		}
@@ -59,8 +54,7 @@ public class KafkaNettyConnectHandler extends ChannelDuplexHandler {
 	
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-		final String remoteAddr = ChannelUtil.parseChannelRemoteAddr(ctx.channel());
-		logger.info("Channel to remoteAddress {} is exceptional", remoteAddr, cause);
+		logger.info("inboundChannel {} occurs exception {}", getInboundChannel(ctx.channel()), cause);
 		ChannelUtil.closeChannel(ctx.channel());
 	}
 }

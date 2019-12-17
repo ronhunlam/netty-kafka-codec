@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
-import static com.dragonsoft.netty.codec.kafka.KafkaNettyProxyConfig.LOGGER_NAME;
+import static com.dragonsoft.netty.codec.kafka.ChannelUtil.getInboundChannel;
 import static org.apache.kafka.common.internals.Topic.isInternal;
 
 /**
@@ -24,7 +24,7 @@ import static org.apache.kafka.common.internals.Topic.isInternal;
  */
 @ChannelHandler.Sharable
 public class KafkaNettyServerHandler extends SimpleChannelInboundHandler<KafkaNettyRequest> {
-	private static final Logger logger = LoggerFactory.getLogger(LOGGER_NAME);
+	private static final Logger logger = LoggerFactory.getLogger(KafkaNettyServerHandler.class);
 	
 	@Override
 	public void channelActive(ChannelHandlerContext ctx) throws Exception {
@@ -33,7 +33,7 @@ public class KafkaNettyServerHandler extends SimpleChannelInboundHandler<KafkaNe
 	
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, KafkaNettyRequest request) throws Exception {
-		logger.info("inbound channel active local : " + ctx.channel().localAddress() + " remote: " + ChannelUtil.parseChannelRemoteAddr(ctx.channel()));
+		logger.info("inbound channel {} active ", getInboundChannel(ctx.channel()));
 		RequestHeader header = request.getRequestHeader();
 		if (header.apiKey() == ApiKeys.SASL_HANDSHAKE) {
 			logger.warn("Don't support SASL!");

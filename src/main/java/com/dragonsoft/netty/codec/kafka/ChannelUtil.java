@@ -18,7 +18,7 @@ public class ChannelUtil {
 	
 	private static Logger logger = LoggerFactory.getLogger(ChannelUtil.class.getName());
 	
-	public static String parseChannelRemoteAddr(final Channel channel) {
+	private static String parseChannelRemoteAddr(final Channel channel) {
 		if (null == channel) {
 			return "";
 		}
@@ -34,7 +34,7 @@ public class ChannelUtil {
 		return "";
 	}
 	
-	public static String parseChannelLocalAddr(final Channel channel) {
+	private static String parseChannelLocalAddr(final Channel channel) {
 		if (null == channel) {
 			return "";
 		}
@@ -49,6 +49,23 @@ public class ChannelUtil {
 		}
 		return "";
 	}
+	
+	public static String getInboundChannel(Channel inbound) {
+		if (inbound == null) {
+			throw new IllegalArgumentException("inbound channel can't be null");
+		}
+		String inboundChannel = parseChannelRemoteAddr(inbound) + "-" + parseChannelLocalAddr(inbound);
+		return inboundChannel;
+	}
+	
+	public static String getOutboundChannel(Channel outbound) {
+		if (outbound == null) {
+			throw new IllegalArgumentException("outbound channel can't be null");
+		}
+		String outboundChannel = parseChannelLocalAddr(outbound) + "-" + parseChannelRemoteAddr(outbound);
+		return outboundChannel;
+	}
+	
 	
 	public static void closeChannel(Channel channel) {
 		final String localAddr = parseChannelLocalAddr(channel);

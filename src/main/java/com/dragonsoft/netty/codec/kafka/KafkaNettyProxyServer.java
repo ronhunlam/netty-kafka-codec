@@ -12,8 +12,6 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.InetSocketAddress;
-
 import static com.dragonsoft.netty.codec.kafka.KafkaNettyProxyConfig.*;
 
 /**
@@ -43,7 +41,7 @@ public class KafkaNettyProxyServer implements ProxyServer {
 			.option(ChannelOption.SO_RCVBUF, 65535)
 			.option(ChannelOption.SO_SNDBUF, 65535)
 			.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
-			.localAddress(localProxyPort)
+			.localAddress(LOCAL_PROXY_PORT)
 			.childOption(ChannelOption.AUTO_READ, false)
 			.childHandler(new ChannelInitializer<SocketChannel>() {
 				@Override

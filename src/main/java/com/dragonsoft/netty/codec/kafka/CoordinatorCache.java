@@ -2,7 +2,7 @@ package com.dragonsoft.netty.codec.kafka;
 
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
+/** cache {@link org.apache.kafka.common.requests.FindCoordinatorResponse}
  * @author: ronhunlam
  * date:2019/12/7 20:34
  */

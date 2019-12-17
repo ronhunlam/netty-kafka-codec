@@ -14,17 +14,18 @@ import org.slf4j.LoggerFactory;
 import java.nio.ByteBuffer;
 import java.util.Queue;
 
-import static com.dragonsoft.netty.codec.kafka.ChannelUtil.parseChannelLocalAddr;
-import static com.dragonsoft.netty.codec.kafka.ChannelUtil.parseChannelRemoteAddr;
+import static com.dragonsoft.netty.codec.kafka.ChannelUtil.getInboundChannel;
+import static com.dragonsoft.netty.codec.kafka.ChannelUtil.getOutboundChannel;
+import static com.dragonsoft.netty.codec.kafka.KafkaNettyProxyConfig.MAX_FRAME_LENGTH;
 
-/**
+/** outbound channel handler
  * @author: ronhunlam
  * date:2019/8/19 17:10
  */
 public class KafkaResponseDecoder extends LengthFieldBasedFrameDecoder {
 	
 	private static Logger logger = LoggerFactory.getLogger(KafkaRequestDecoder.class.getName());
-	private static final int MAX_FRAME_LENGTH = 100 * 1024 * 1024;
+	
 	// left for future
 	private final Channel inboundChannel;
 	private final Queue<KafkaNettyRequest> cachedRequests;
@@ -47,21 +48,20 @@ public class KafkaResponseDecoder extends LengthFieldBasedFrameDecoder {
 				KafkaNettyRequest request = cachedRequests.poll();
 				if (request != null) {
 					// the response is corresponding to the request :).
-					logger.info("outbound begin to read {} response", request.getRequestHeader().apiKey());
 					RequestHeader requestHeader = request.getRequestHeader();
 					ResponseHeader responseHeader = ResponseHeader.parse(responseBuffer);
 					Struct responseStruct = requestHeader.apiKey().parseResponse(requestHeader.apiVersion(), responseBuffer);
 					AbstractResponse responsBody = AbstractResponse.
 						parseResponse(requestHeader.apiKey(), responseStruct, requestHeader.apiVersion());
 					response = new KafkaNettyResponse(request, responseHeader, responsBody);
-					logger.info("outbound channel local address {} remote address {} read {} ==========> response {}",
-						parseChannelLocalAddr(ctx.channel()), parseChannelRemoteAddr(ctx.channel()),
+					logger.info("outbound channel {} corresponding inbound channel {} read {} response ==========> {}",
+						getOutboundChannel(ctx.channel()), getInboundChannel(inboundChannel),
 						request.getRequestHeader().apiKey(), response.toString());
 				}
 			}
 		} catch (Exception e) {
-			logger.error("outbound channel local address {} remote address {} decoding response occurs exception: {}",
-				parseChannelLocalAddr(ctx.channel()), parseChannelRemoteAddr(ctx.channel()), e);
+			logger.error("outbound channel {} corresponding inbound channel {} decoding response occurs exception: {}",
+				getOutboundChannel(ctx.channel()), getInboundChannel(inboundChannel), e);
 		} finally {
 			if (null != frame) {
 				frame.release();

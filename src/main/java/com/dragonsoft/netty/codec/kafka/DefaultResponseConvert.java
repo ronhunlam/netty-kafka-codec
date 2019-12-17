@@ -11,7 +11,7 @@ import org.apache.kafka.common.requests.MetadataResponse;
 
 import java.nio.ByteBuffer;
 
-import static com.dragonsoft.netty.codec.kafka.KafkaNettyProxyConfig.localProxyPort;
+import static com.dragonsoft.netty.codec.kafka.KafkaNettyProxyConfig.LOCAL_PROXY_PORT;
 import static com.dragonsoft.netty.codec.kafka.NetworkUtil.getLocalHostName;
 
 /**
@@ -57,7 +57,7 @@ public class DefaultResponseConvert implements ResponseConvert {
 		for (MetadataResponseData.MetadataResponseBroker broker : mrdmrbc) {
 			MetadataCache.putNodeInfo(broker.nodeId(), new NodeWrapper(broker.nodeId(), broker.host(), broker.port()));
 			broker.setHost(NetworkUtil.getLocalHostName());
-			broker.setPort(localProxyPort);
+			broker.setPort(LOCAL_PROXY_PORT);
 		}
 	}
 	
@@ -74,6 +74,6 @@ public class DefaultResponseConvert implements ResponseConvert {
 			new NodeWrapper(coordinatorNode.id(), coordinatorNode.host(), coordinatorNode.port()));
 		FindCoordinatorResponseData frData = fr.data();
 		frData.setHost(getLocalHostName());
-		frData.setPort(localProxyPort);
+		frData.setPort(LOCAL_PROXY_PORT);
 	}
 }
