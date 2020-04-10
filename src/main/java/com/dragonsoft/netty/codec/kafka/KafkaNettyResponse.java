@@ -9,23 +9,11 @@ import org.apache.kafka.common.requests.ResponseHeader;
  * date:2019/8/15 17:10
  */
 public class KafkaNettyResponse {
-	/** request，用来和响应关联在一起
-	 * @param
-	 * @return
-	 * @throws
-	*/
+	/** request，用来和响应关联在一起 */
 	private KafkaNettyRequest request;
-	/** response header
-	 * @param
-	 * @return
-	 * @throws
-	*/
+	/** response header */
 	private ResponseHeader responseHeader;
-	/** response body
-	 * @param
-	 * @return
-	 * @throws
-	*/
+	/** response body */
 	private AbstractResponse responseBody;
 	
 	public KafkaNettyResponse(KafkaNettyRequest request, ResponseHeader responseHeader, AbstractResponse response) {

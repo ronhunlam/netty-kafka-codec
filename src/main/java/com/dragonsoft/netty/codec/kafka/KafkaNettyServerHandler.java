@@ -18,10 +18,11 @@ import java.util.*;
 import static com.dragonsoft.netty.codec.kafka.ChannelUtil.getInboundChannel;
 import static org.apache.kafka.common.internals.Topic.isInternal;
 
-/**
+/** This handler is just for demonstrating.
  * @author: ronhunlam
  * date:2019/8/3 15:17
  */
+@Deprecated
 @ChannelHandler.Sharable
 public class KafkaNettyServerHandler extends SimpleChannelInboundHandler<KafkaNettyRequest> {
 	private static final Logger logger = LoggerFactory.getLogger(KafkaNettyServerHandler.class);

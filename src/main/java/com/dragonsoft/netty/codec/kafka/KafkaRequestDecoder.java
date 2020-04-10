@@ -41,7 +41,7 @@ public class KafkaRequestDecoder extends LengthFieldBasedFrameDecoder {
 		ByteBuf frame = null;
 		KafkaNettyRequest request = null;
 		try {
-			// if the frame is null, that indicates the tcp segment is sliced.
+			// if the frame is null, that indicates the tcp segments are being sliced.
 			frame = (ByteBuf) super.decode(ctx, in);
 			if (frame != null) {
 				ByteBuffer rawBuffer = frame.nioBuffer();

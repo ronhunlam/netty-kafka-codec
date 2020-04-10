@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class MetadataCache {
 	
-	// assume that the proxy server only surrogate the single cluster.
+	// assume that the proxy server only surrogates a single cluster.
 	private static volatile MetadataResponse metadataResponse;
 	
 	private static final ConcurrentHashMap<Integer, NodeWrapper> rawNodesInfos = new ConcurrentHashMap<>();

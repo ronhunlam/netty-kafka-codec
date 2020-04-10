@@ -2,8 +2,6 @@ package com.dragonsoft.netty.codec.kafka;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.internal.StringUtil;
 import org.apache.commons.lang.StringUtils;
@@ -26,7 +24,7 @@ import static com.dragonsoft.netty.codec.kafka.NetworkUtil.getRealIpFromHostName
 import static org.apache.kafka.common.protocol.ApiKeys.*;
 
 /**
- * this handler is used for converting {@link KafkaNettyRequest} to {@link ByteBuffer}
+ * this handler is used for converting {@link KafkaNettyRequest} to {@link ByteBuffer}.
  * handler for inbound channel.
  *
  * @author: ronhunlam
@@ -42,15 +40,17 @@ public class KafkaNettyProxyFrontendHandler extends ChannelInboundHandlerAdapter
 	private Channel apiVersionChannel = null;
 	private Channel newChannel = null;
 	private final Set<Channel> channels = new HashSet<>();
+	private final ClientBootstrapFactory cbf;
 	
 	public KafkaNettyProxyFrontendHandler() {
-		this(new DefaultRequestConvert(), INBOUND_QUEUE_SIZE);
+		this(new DefaultRequestConvert(), INBOUND_QUEUE_SIZE, new DefaultClientBootstrapFactory());
 	}
 	
-	public KafkaNettyProxyFrontendHandler(RequestConvert convert, int queueSize) {
+	public KafkaNettyProxyFrontendHandler(RequestConvert convert, int queueSize, ClientBootstrapFactory cbf) {
 		this.requestConvert = convert;
 		// maybe used for multi-thread.
 		this.cachedRequests = new ArrayBlockingQueue<>(queueSize);
+		this.cbf = cbf;
 	}
 	
 	@Override
@@ -105,7 +105,7 @@ public class KafkaNettyProxyFrontendHandler extends ChannelInboundHandlerAdapter
 				|| apiKeys == OFFSET_COMMIT || apiKeys == LEAVE_GROUP) {
 				channels.add(getOrOpenJoinGroupChannel(ctx.channel(), request));
 			} else {
-				logger.info("unsupported request {} of inbound channel {}",
+				logger.warn("unsupported request {} of inbound channel {} will be ignored",
 					request.toString(), getInboundChannel(ctx.channel()));
 			}
 		}
@@ -428,24 +428,15 @@ public class KafkaNettyProxyFrontendHandler extends ChannelInboundHandlerAdapter
 	 * @throws
 	 */
 	private ChannelFuture openOutboundChannel(Channel inboundChannel, String host, int port) {
-		Bootstrap client = new Bootstrap();
-		client.group(inboundChannel.eventLoop())
-			.option(ChannelOption.SO_KEEPALIVE, true)
-			.option(ChannelOption.SO_BACKLOG, 1024)
-			.option(ChannelOption.SO_RCVBUF, 65535)
-			.option(ChannelOption.SO_SNDBUF, 65535)
-			.option(ChannelOption.TCP_NODELAY, true)
-			.option(ChannelOption.AUTO_READ, false)
-			.channel(NioSocketChannel.class)
-			.handler(new ChannelInitializer<SocketChannel>() {
-				@Override
-				protected void initChannel(SocketChannel socketChannel) throws Exception {
-					socketChannel.pipeline()
-						.addLast(new KafkaRequestEncoder(inboundChannel))
-						.addLast(new KafkaResponseDecoder(inboundChannel, cachedRequests))
-						.addLast(new KafkaNettyProxyBackendHandler(inboundChannel));
-				}
-			});
+		Bootstrap client = cbf.newClientBootstrap(inboundChannel, new ChannelInitializer() {
+			@Override
+			protected void initChannel(Channel socketChannel) throws Exception {
+				socketChannel.pipeline()
+					.addLast(new KafkaRequestEncoder(inboundChannel))
+					.addLast(new KafkaResponseDecoder(inboundChannel, cachedRequests))
+					.addLast(new KafkaNettyProxyBackendHandler(inboundChannel));
+			}
+		});
 		ChannelFuture f = client.connect(host, port);
 		return f;
 	}

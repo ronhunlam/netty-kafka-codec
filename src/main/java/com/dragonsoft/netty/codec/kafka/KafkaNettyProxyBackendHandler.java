@@ -13,7 +13,7 @@ import static com.dragonsoft.netty.codec.kafka.ChannelUtil.getInboundChannel;
 import static com.dragonsoft.netty.codec.kafka.ChannelUtil.getOutboundChannel;
 
 /**
- * this handler is used for converting {@link KafkaNettyResponse} to {@link ByteBuffer}
+ * this handler is used for converting {@link KafkaNettyResponse} to {@link ByteBuffer}.
  *
  * @author: ronhunlam
  * date:2019/8/19 16:29
